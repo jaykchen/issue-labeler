@@ -80,7 +80,7 @@ pub fn parse_labels_from_response(input: &str) -> anyhow::Result<String> {
 
         // Extract the response content by trimming whitespace.
         let response_content = input[content_start..].trim();
-
+log::info!("response_content: {:?}", response_content);
         Ok(response_content.to_string())
     } else {
         Err(anyhow::anyhow!("'Response' section not found"))

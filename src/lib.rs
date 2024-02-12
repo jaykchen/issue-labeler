@@ -52,22 +52,23 @@ async fn inner() -> anyhow::Result<()> {
     let contributors_set = HashSet::new();
     for issue in list.items {
         log::info!("{:?}", issue.title);
-        if issue.pull_request.is_some() {
-            continue;
-        }
-        let labels = issue.labels.clone();
-        if
-            issue.created_at.naive_utc() < n_days_ago
-            // || !issue.labels.is_empty()
-        {
-            continue;
-        }
+        // if issue.pull_request.is_some() {
+        //     continue;
+        // }
+        // let labels = issue.labels.clone();
+        // if
+        //     issue.created_at.naive_utc() < n_days_ago
+        //     // || !issue.labels.is_empty()
+        // {
+        //     continue;
+        // }
 
         let payload = why_labels(&issue, contributors_set.clone()).await?;
 
         let title = payload.title.clone();
         let creator = payload.creator.clone();
         let essence = payload.essence.clone();
+        log::info!("{:?}", essence.clone().unwrap_or_default());
 
         let question = format!(
             "Can you assign labels to the GitHub issue titled `{title}` created by `{creator}`, stating `{essence:?}`?"
@@ -84,14 +85,11 @@ async fn inner() -> anyhow::Result<()> {
         ### Response:"#
         );
 
-        let system_prompt =
-            "You're a programming bot tasked to analyze GitHub issues data and assign labels to them";
         let res = completion_inner_async(&query).await?;
 
-        let lablels = parse_labels_from_response(&res)?;
-        let _ = report_issue_handle.create(title);
-
-        let _ = report_issue_handle.create_label(lablels, "Label-2", "demo").await?;
+        let lablels = parse_labels_from_response(&res)?.split(',').map(|s| s.to_string()).collect::<Vec<String>>();
+        let _ = report_issue_handle.create(title).body("demo").labels(Some(lablels)).send().await?;
+        break;
     }
 
     Ok(())

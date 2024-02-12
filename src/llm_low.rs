@@ -38,6 +38,8 @@ pub async fn completion_inner_async(user_input: &str) -> anyhow::Result<String> 
             .context("Failed to parse response from API")?;
 
         if let Some(choice) = completion_response.get(0) {
+
+            log::info!("choice: {:?}", choice);
             Ok(choice.generated_text.clone())
         } else {
             Err(anyhow::anyhow!("No completion choices found in the response"))
