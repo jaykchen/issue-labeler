@@ -1,21 +1,15 @@
 pub mod llm_low;
 pub mod utils;
-use chrono::{Datelike, Duration, Timelike, Utc};
+use chrono::{ Datelike, Duration, Timelike, Utc };
 use dotenv::dotenv;
 use flowsnet_platform_sdk::logger;
-use github_flows::{get_octo, GithubLogin};
-use llm_low::chat_inner_async;
+use github_flows::{ get_octo, GithubLogin };
+use llm_low::completion_inner_async;
 use octocrab_wasi::params::State;
-use octocrab_wasi::{ params::issues::Sort, params::Direction};
-use openai_flows::{
-    chat::{ChatModel, ChatOptions},
-    OpenAIFlows,
-};
-use schedule_flows::{schedule_cron_job, schedule_handler};
-use std::{
-    collections::{HashMap, HashSet},
-    env,
-};
+use octocrab_wasi::{ params::issues::Sort, params::Direction };
+use openai_flows::{ chat::{ ChatModel, ChatOptions }, OpenAIFlows };
+use schedule_flows::{ schedule_cron_job, schedule_handler };
+use std::{ collections::{ HashMap, HashSet }, env };
 use utils::*;
 
 #[no_mangle]
@@ -52,19 +46,19 @@ async fn inner() -> anyhow::Result<()> {
         .direction(Direction::Descending)
         .per_page(10)
         .page(1u8)
-        .send()
-        .await?;
+        .send().await?;
 
     let n_days_ago = (Utc::now() - Duration::days(1)).naive_utc();
     let contributors_set = HashSet::new();
     for issue in list.items {
+        log::info!("{:?}", issue.title);
         if issue.pull_request.is_some() {
             continue;
         }
-        log::info!("{:?}", issue.title);
         let labels = issue.labels.clone();
-        if issue.created_at.naive_utc() < n_days_ago
-        // || !issue.labels.is_empty()
+        if
+            issue.created_at.naive_utc() < n_days_ago
+            // || !issue.labels.is_empty()
         {
             continue;
         }
@@ -90,15 +84,14 @@ async fn inner() -> anyhow::Result<()> {
         ### Response:"#
         );
 
-        let system_prompt ="You're a programming bot tasked to analyze GitHub issues data and assign labels to them";
-        let res = chat_inner_async(system_prompt, &query, 512, "model").await?;
+        let system_prompt =
+            "You're a programming bot tasked to analyze GitHub issues data and assign labels to them";
+        let res = completion_inner_async(&query).await?;
 
         let lablels = parse_labels_from_response(&res)?;
         let _ = report_issue_handle.create(title);
 
-        let _ = report_issue_handle
-            .create_label(lablels, "Label-2", "demo")
-            .await?;
+        let _ = report_issue_handle.create_label(lablels, "Label-2", "demo").await?;
     }
 
     Ok(())

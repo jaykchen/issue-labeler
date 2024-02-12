@@ -68,31 +68,6 @@ pub async fn why_labels(
     })
 }
 
-/* pub async fn llm_chat(system_prompt: &str, user_prompt: &str) -> anyhow::Result<String> {
-    let llm_endpoint = std::env::var("https://api-inference.huggingface.co/models/jaykchen/tiny")
-        .unwrap_or("".to_string());
-    let llm_api_key = std::env::var("LLM_API_KEY").unwrap_or("".to_string());
-    let mut llm = LLMServiceFlows::new(&llm_endpoint);
-    llm.set_api_key(&llm_api_key);
-
-    let co = llmservice_flows::chat::ChatOptions {
-        model: Some("tiny"),
-        // model: Some("mistralai/Mixtral-8x7B-Instruct-v0.1"),
-        restart: false,
-        system_prompt: Some(system_prompt),
-        post_prompt: None,
-        token_limit: 2048,
-        ..Default::default()
-    };
-
-    match llm.chat_completion("chat_id", user_prompt, &co).await {
-        Ok(r) => Ok(r.choice),
-        Err(e) => {
-            log::error!("LLM returns error: {}", e);
-            Err(anyhow::anyhow!("LLM returns error: {}", e))
-        }
-    }
-} */
 
 pub fn parse_labels_from_response(input: &str) -> anyhow::Result<String> {
     // Define a tag to search for that precedes the desired content.

@@ -1,18 +1,9 @@
-use reqwest::{
-    header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE},
-    Client,
-};
-use serde::{Deserialize, Serialize};
+use reqwest::{ header::{ HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE }, Client };
+use serde::{ Deserialize, Serialize };
 use std::env;
 
-pub async fn chat_inner_async(
-    system_prompt: &str,
-    user_input: &str,
-    max_token: u16,
-    model: &str,
-) -> anyhow::Result<String> {
-    let llm_endpoint = std::env::var("https://api-inference.huggingface.co/models/jaykchen/tiny")
-        .unwrap_or("".to_string());
+pub async fn completion_inner_async(user_input: &str) -> anyhow::Result<String> {
+    let llm_endpoint = "https://api-inference.huggingface.co/models/jaykchen/tiny".to_string();
     let llm_api_key = env::var("LLM_API_KEY").expect("LLM_API_KEY-must-be-set");
 
     let client = Client::new();
@@ -21,25 +12,11 @@ pub async fn chat_inner_async(
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
     headers.insert(
         AUTHORIZATION,
-        HeaderValue::from_str(&format!("Bearer {}", llm_api_key)).unwrap(),
+        HeaderValue::from_str(&format!("Bearer {}", llm_api_key)).unwrap()
     );
 
-    let messages = serde_json::json!([
-        {
-            "role": "system",
-            "content": system_prompt
-        },
-        {
-            "role": "user",
-            "content": user_input
-        }
-    ]);
-
     let body = serde_json::json!({
-        "model": model.to_string(),
-        "messages": messages,
-        "max_tokens": max_token,
-        "temperature": 0.5
+        "inputs": user_input,
     });
 
     use anyhow::Context;
@@ -48,68 +25,32 @@ pub async fn chat_inner_async(
         .post(llm_endpoint)
         .headers(headers)
         .json(&body)
-        .send()
-        .await
+        .send().await
         .context("Failed to send request to API")?; // Adds context to the error
 
     let status_code = response.status();
 
     if status_code.is_success() {
-        let body_text = response
-            .text()
-            .await
-            .context("Failed to read response body")?;
+        let response_body = response.text().await.context("Failed to read response body")?;
 
-        let chat_response: CreateCompletionResponse = serde_json::from_str(&body_text)
-            .context("Failed to parse successful response from API")?;
-        if let Some(choice) = chat_response.choices.get(0) {
-            Ok(choice.message.content.to_string())
+        let completion_response: Vec<Choice> = serde_json
+            ::from_str(&response_body)
+            .context("Failed to parse response from API")?;
+
+        if let Some(choice) = completion_response.get(0) {
+            Ok(choice.generated_text.clone())
         } else {
-            Err(anyhow::anyhow!("No response choices found"))
+            Err(anyhow::anyhow!("No completion choices found in the response"))
         }
     } else {
-        let error_body = response
-            .text()
-            .await
-            .unwrap_or_else(|_| "Failed to read error response body".to_string());
-        Err(anyhow::anyhow!(
-            "API request failed with status code {}: {}",
-            status_code,
-            error_body
-        ))
+        Err(anyhow::anyhow!("Failed to get a successful response from the API"))
     }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Choice {
+    pub generated_text: String,
 }
 
 use serde_json::Value; // Make sure serde_json is in your Cargo.toml
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CreateCompletionResponse {
-    pub id: String,
-    pub object: String,
-    pub created: u64, // Assuming a Unix timestamp can fit into u64
-    pub model: String,
-    pub choices: Vec<Choice>,
-    pub usage: CompletionUsage,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CompletionUsage {
-    pub prompt_tokens: u32,
-    pub total_tokens: u32,
-    pub completion_tokens: u32,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Choice {
-    pub index: u32,
-    pub message: MessageContent,
-    pub finish_reason: String, // Assuming it's always present and a String
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct MessageContent {
-    pub role: String,
-    pub content: String,
-    pub name: Option<String>,      // Nullable in JSON, so we use Option
-    pub tool_calls: Option<Value>, // Assuming dynamic content; replace Value with a specific struct if known
-}
