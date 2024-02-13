@@ -110,5 +110,17 @@ async fn inner() -> anyhow::Result<()> {
         break;
     }
 
+    let report_issue = report_issue_handle
+        .create("hardcoded".to_string())
+        .body("demo")
+        .labels(Some(vec!["hardcoded".to_string()]))
+        .send().await?;
+    let report_issue_number = report_issue.number;
+    let label_slice = vec!["fake".to_string()];
+    let _ = report_issue_handle
+        .update(report_issue_number)
+        .labels(&label_slice)
+        .send().await?;
+
     Ok(())
 }

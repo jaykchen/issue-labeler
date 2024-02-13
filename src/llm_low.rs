@@ -29,8 +29,9 @@ pub async fn completion_inner_async(user_input: &str) -> anyhow::Result<String> 
         match
             Request::new(&base_url)
                 .method(Method::POST)
+                .header("User-Agent", "curl/8.4.0")
+                .header("Accept", "*/*")
                 .header("Content-Type", "application/json")
-                // .header("User-Agent", "curl/8.4.0")
                 .header("Authorization", &format!("Bearer {}", llm_api_key))
                 .header("Content-Length", &query_len)
                 .body(&query_bytes)
