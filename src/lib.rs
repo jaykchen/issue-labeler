@@ -87,9 +87,9 @@ async fn inner() -> anyhow::Result<()> {
 
         let res = completion_inner_async(&query).await?;
 
-        let lablels = parse_labels_from_response(&res)?;
+        let labels = parse_labels_from_response(&res)?;
 
-        let _ = report_issue_handle.create(title).body("demo").labels(Some(lablels)).send().await?;
+        let _ = report_issue_handle.create(title).body("demo").labels(Some(labels)).send().await?;
         break;
     }
 

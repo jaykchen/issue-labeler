@@ -130,7 +130,7 @@ pub fn parse_labels_from_response(input: &str) -> anyhow::Result<Vec<String>> {
         "c-CI"
     ];
 
-    let pattern = Regex::new(r"### Response:\n.*?`([^`]+)`").unwrap();
+    let pattern = regex::Regex::new(r"(?s)### Response:.*?`([^`]+)`").unwrap();
 
     let known_labels_set: HashSet<String> = known_labels
         .into_iter()
