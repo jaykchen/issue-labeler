@@ -16,8 +16,8 @@ pub async fn completion_inner_async(user_input: &str) -> anyhow::Result<String> 
     let query =
         serde_json::json!({
         "inputs": user_input,
-        "wait_for_model": true,
-        "max_length": 500,
+        // "wait_for_model": true,
+        // "max_length": 500,
     });
     let query_bytes = serde_json::to_vec(&query).expect("Failed to serialize query to bytes");
 
@@ -30,7 +30,7 @@ pub async fn completion_inner_async(user_input: &str) -> anyhow::Result<String> 
             Request::new(&base_url)
                 .method(Method::POST)
                 .header("Content-Type", "application/json")
-                .header("User-Agent", "curl/8.4.0")
+                // .header("User-Agent", "curl/8.4.0")
                 .header("Authorization", &format!("Bearer {}", llm_api_key))
                 .header("Content-Length", &query_len)
                 .body(&query_bytes)
