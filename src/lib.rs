@@ -64,7 +64,6 @@ async fn inner() -> anyhow::Result<()> {
         // }
 
         let payload = why_labels(&issue, contributors_set.clone()).await?;
-
         let title = payload.title.clone();
         let creator = payload.creator.clone();
         let essence = payload.essence.clone();
@@ -87,9 +86,27 @@ async fn inner() -> anyhow::Result<()> {
 
         let res = completion_inner_async(&query).await?;
 
-        let labels = parse_labels_from_response(&res)?;
+        let mut labels = parse_labels_from_response(&res)?;
 
-        let _ = report_issue_handle.create(title).body("demo").labels(Some(labels)).send().await?;
+        let label = labels.pop().unwrap_or_default();
+        let report_issue = report_issue_handle
+            .create(title.clone())
+            .body("demo")
+            .labels(Some(vec![label]))
+            .send().await?;
+
+        let report_issue_number = report_issue.number;
+        if labels.is_empty() {
+            continue;
+        }
+        for lab in labels.into_iter() {
+            let label_slice = vec![lab];
+            let _ = report_issue_handle
+                .update(report_issue_number)
+                .labels(&label_slice)
+                .send().await?;
+        }
+
         break;
     }
 

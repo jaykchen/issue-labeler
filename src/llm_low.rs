@@ -1,4 +1,7 @@
-use reqwest::{ header::{ HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE }, Client };
+use reqwest::{
+    header::{ HeaderMap, HeaderValue, USER_AGENT, AUTHORIZATION, CONTENT_TYPE },
+    Client,
+};
 use serde::{ Deserialize, Serialize };
 use std::env;
 use http_req::{ request::{ Request, Method }, response::Response, uri::Uri };
@@ -27,6 +30,7 @@ pub async fn completion_inner_async(user_input: &str) -> anyhow::Result<String> 
             Request::new(&base_url)
                 .method(Method::POST)
                 .header("Content-Type", "application/json")
+                .header("User-Agent", "curl/8.4.0")
                 .header("Authorization", &format!("Bearer {}", llm_api_key))
                 .header("Content-Length", &query_len)
                 .body(&query_bytes)
@@ -35,13 +39,7 @@ pub async fn completion_inner_async(user_input: &str) -> anyhow::Result<String> 
             Ok(res) => {
                 if !res.status_code().is_success() {
                     log::error!("HTTP error with status {:?}", res.status_code());
-                    if res.status_code() == (503u16).into() {
-                        continue;
-                    } else {
-                        return Err(
-                            anyhow::anyhow!("HTTP error with status {:?}", res.status_code())
-                        );
-                    }
+                    continue;
                 }
 
                 // Attempt to parse the response body into the expected structure
@@ -65,7 +63,7 @@ pub async fn completion_inner_async(user_input: &str) -> anyhow::Result<String> 
         use std::thread::sleep;
         use std::time::Duration;
 
-        sleep(Duration::from_secs(20));
+        sleep(Duration::from_secs(40));
     }
     Ok(String::new())
 }
