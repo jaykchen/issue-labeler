@@ -87,7 +87,8 @@ async fn inner() -> anyhow::Result<()> {
 
         let res = completion_inner_async(&query).await?;
 
-        let lablels = parse_labels_from_response(&res)?.split(',').map(|s| s.to_string()).collect::<Vec<String>>();
+        let lablels = parse_labels_from_response(&res)?;
+
         let _ = report_issue_handle.create(title).body("demo").labels(Some(lablels)).send().await?;
         break;
     }

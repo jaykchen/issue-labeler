@@ -68,16 +68,100 @@ pub async fn why_labels(
     })
 }
 
-pub fn parse_labels_from_response(input: &str) -> anyhow::Result<String> {
+pub fn parse_labels_from_response(input: &str) -> anyhow::Result<Vec<String>> {
+    let known_labels = vec![
+        "LFX Mentorship",
+        "c-Test",
+        "question",
+        "c-WASI-NN",
+        "breaking changes",
+        "c-Plugin",
+        "priority:medium",
+        "platform-android",
+        "c-Example",
+        "bug",
+        "arch-arm32",
+        "platform-windows",
+        "c-Internal",
+        "platform-iOS",
+        "c-WASI-Threads",
+        "compiler-MSVC",
+        "compiler-gcc",
+        "OSPP",
+        "c-WASI",
+        "c-Interpreter",
+        "Improvement",
+        "help wanted",
+        "Hacktoberfest",
+        "c-function-references",
+        "documentation",
+        "binding-rust",
+        "hacktoberfest-spam",
+        "platform-macos",
+        "priority:high",
+        "integration",
+        "c-CAPI",
+        "github_actions",
+        "Cannot-Reproduce",
+        "compiler-llvm",
+        "binding-python",
+        "platform-OHOS",
+        "platform-linux",
+        "c-AOT",
+        "c-CLI",
+        "duplicate",
+        "arch-x86_64",
+        "good first issue",
+        "c-Container",
+        "invalid",
+        "arch-arm64",
+        "wontfix",
+        "c-CMake",
+        "c-Installer",
+        "fuzz-different-behavior",
+        "enhancement",
+        "c-ExceptionHandling",
+        "dependencies",
+        "feature",
+        "binding-java",
+        "binding-go",
+        "priority:low",
+        "c-WASI-Crypto",
+        "c-CI"
+    ];
+
     let pattern = Regex::new(r"### Response:\n.*?`([^`]+)`").unwrap();
+
+    let known_labels_set: HashSet<String> = known_labels
+        .into_iter()
+        .map(|s| s.to_lowercase())
+        .collect();
 
     if let Some(captures) = pattern.captures(input) {
         if let Some(matched) = captures.get(1) {
             let labels = matched.as_str();
+            let extracted_labels: Vec<&str> = labels.split(',').map(str::trim).collect();
 
-            log::info!("Extracted labels: {:?}", labels);
+            let mut final_labels = Vec::new();
 
-            Ok(labels.to_string())
+            for label in extracted_labels {
+                // Normalize the label for comparison
+                let normalized_label = label.to_lowercase();
+
+                // Check if the normalized label is "close enough" to any known label
+                // This is a basic check, replace with fuzzy matching if needed
+                let close_enough_label = known_labels_set
+                    .iter()
+                    .find(|&known_label| known_label == &normalized_label);
+
+                match close_enough_label {
+                    Some(known_label) => final_labels.push(known_label.clone()),
+                    None => final_labels.push(normalized_label), // If not found, treat as a new/unknown label
+                }
+            }
+
+            log::info!("Extracted labels: {:?}", final_labels);
+            Ok(final_labels)
         } else {
             Err(anyhow::anyhow!("No labels found within backticks"))
         }
@@ -85,6 +169,7 @@ pub fn parse_labels_from_response(input: &str) -> anyhow::Result<String> {
         Err(anyhow::anyhow!("'Response' section not found or does not follow the expected format"))
     }
 }
+
 
 pub async fn chat_inner(system_prompt: &str, user_prompt: &str) -> anyhow::Result<String> {
     let openai = OpenAIFlows::new();
