@@ -35,7 +35,7 @@ pub async fn completion_inner_async(user_input: &str) -> anyhow::Result<String> 
             Ok(res) => {
                 if !res.status_code().is_success() {
                     log::error!("HTTP error with status {:?}", res.status_code());
-                    if res.status_code() == 503u16.into() {
+                    if res.status_code() == (503u16).into() {
                         continue;
                     } else {
                         return Err(
@@ -53,15 +53,19 @@ pub async fn completion_inner_async(user_input: &str) -> anyhow::Result<String> 
                     log::info!("Choice: {:?}", choice);
                     return Ok(choice.generated_text.clone());
                 } else {
-                   return Err(anyhow::anyhow!("No completion choices found in the response"));
+                    return Err(anyhow::anyhow!("No completion choices found in the response"));
                 }
             }
             Err(e) => {
                 log::error!("Error getting response from API: {:?}", e);
 
-              return  Err(anyhow::anyhow!("Error getting response from API: {:?}", e));
+                return Err(anyhow::anyhow!("Error getting response from API: {:?}", e));
             }
         }
+        use std::thread::sleep;
+        use std::time::Duration;
+
+        sleep(Duration::from_secs(20));
     }
     Ok(String::new())
 }
