@@ -68,22 +68,21 @@ pub async fn why_labels(
     })
 }
 
-
 pub fn parse_labels_from_response(input: &str) -> anyhow::Result<String> {
-    // Define a tag to search for that precedes the desired content.
-    let response_tag = "### Response:";
+    let pattern = Regex::new(r"### Response:\n.*?`([^`]+)`").unwrap();
 
-    // Find the position of the tag.
-    if let Some(start_index) = input.find(response_tag) {
-        // Calculate the start of the actual response content.
-        let content_start = start_index + response_tag.len();
+    if let Some(captures) = pattern.captures(input) {
+        if let Some(matched) = captures.get(1) {
+            let labels = matched.as_str();
 
-        // Extract the response content by trimming whitespace.
-        let response_content = input[content_start..].trim();
-log::info!("response_content: {:?}", response_content);
-        Ok(response_content.to_string())
+            log::info!("Extracted labels: {:?}", labels);
+
+            Ok(labels.to_string())
+        } else {
+            Err(anyhow::anyhow!("No labels found within backticks"))
+        }
     } else {
-        Err(anyhow::anyhow!("'Response' section not found"))
+        Err(anyhow::anyhow!("'Response' section not found or does not follow the expected format"))
     }
 }
 
