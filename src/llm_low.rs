@@ -13,7 +13,7 @@ pub async fn completion_inner_async(user_input: &str) -> anyhow::Result<String> 
     let query = serde_json::json!({
         "inputs": user_input,
         "wait_for_model": true,
-        "max_new_tokens": 500,
+        "max_length": 500,
     });
     let query_bytes = serde_json::to_vec(&query).expect("Failed to serialize query to bytes");
 
