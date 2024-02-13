@@ -10,7 +10,8 @@ pub async fn completion_inner_async(user_input: &str) -> anyhow::Result<String> 
 
     let mut writer = Vec::new(); // This will store the response body
 
-    let query = serde_json::json!({
+    let query =
+        serde_json::json!({
         "inputs": user_input,
         "wait_for_model": true,
         "max_length": 500,
@@ -20,41 +21,50 @@ pub async fn completion_inner_async(user_input: &str) -> anyhow::Result<String> 
     // let query_str = query.to_string();
     let query_len = query_bytes.len().to_string();
     // Prepare and send the HTTP request
-    match
-        Request::new(&base_url)
-            .method(Method::POST)
-            .header("Content-Type", "application/json")
-            .header("Authorization", &format!("Bearer {}", llm_api_key))
-            .header("Content-Length", &query_len)
-            .body(&query_bytes)
-            .send(&mut writer)
-    {
-        Ok(res) => {
-            if !res.status_code().is_success() {
-                log::error!("HTTP error with status {:?}", res.status_code());
-                return Err(anyhow::anyhow!("HTTP error with status {:?}", res.status_code()));
+
+    for n in 0..3 {
+        match
+            Request::new(&base_url)
+                .method(Method::POST)
+                .header("Content-Type", "application/json")
+                .header("Authorization", &format!("Bearer {}", llm_api_key))
+                .header("Content-Length", &query_len)
+                .body(&query_bytes)
+                .send(&mut writer)
+        {
+            Ok(res) => {
+                if !res.status_code().is_success() {
+                    log::error!("HTTP error with status {:?}", res.status_code());
+                    if res.status_code() == 503u16.into() {
+                        continue;
+                    } else {
+                        return Err(
+                            anyhow::anyhow!("HTTP error with status {:?}", res.status_code())
+                        );
+                    }
+                }
+
+                // Attempt to parse the response body into the expected structure
+                let completion_response: Vec<Choice> = serde_json
+                    ::from_slice(&writer)
+                    .expect("Failed to parse response from API");
+
+                if let Some(choice) = completion_response.get(0) {
+                    log::info!("Choice: {:?}", choice);
+                    return Ok(choice.generated_text.clone());
+                } else {
+                   return Err(anyhow::anyhow!("No completion choices found in the response"));
+                }
             }
+            Err(e) => {
+                log::error!("Error getting response from API: {:?}", e);
 
-            // Attempt to parse the response body into the expected structure
-            let completion_response: Vec<Choice> = serde_json
-                ::from_slice(&writer)
-                .expect("Failed to parse response from API");
-
-            if let Some(choice) = completion_response.get(0) {
-                log::info!("Choice: {:?}", choice);
-                Ok(choice.generated_text.clone())
-            } else {
-                Err(anyhow::anyhow!("No completion choices found in the response"))
+              return  Err(anyhow::anyhow!("Error getting response from API: {:?}", e));
             }
-        }
-        Err(e) => {
-            log::error!("Error getting response from API: {:?}", e);
-
-            Err(anyhow::anyhow!("Error getting response from API: {:?}", e))
         }
     }
+    Ok(String::new())
 }
-
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Choice {
@@ -62,4 +72,3 @@ pub struct Choice {
 }
 
 use serde_json::Value; // Make sure serde_json is in your Cargo.toml
-
