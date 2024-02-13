@@ -15,9 +15,10 @@ use utils::*;
 #[no_mangle]
 #[tokio::main(flavor = "current_thread")]
 pub async fn on_deploy() {
-    let now = Utc::now();
-    let now_minute = now.minute() + 2;
-    let cron_time = format!("{:02} {:02} {:02} * *", now_minute, now.hour(), now.day());
+    // let now = Utc::now();
+    // let now_minute = now.minute() + 2;
+    // let cron_time = format!("{:02} {:02} {:02} * *", now_minute, now.hour(), now.day());
+    let cron_time = format!("2 2 * * *");
     schedule_cron_job(cron_time, String::from("cron_job_evoked")).await;
 }
 
@@ -86,41 +87,19 @@ async fn inner() -> anyhow::Result<()> {
 
         let res = completion_inner_async(&query).await?;
 
-        let mut labels = parse_labels_from_response(&res)?;
-
-        let label = labels.pop().unwrap_or_default();
-        let report_issue = report_issue_handle
-            .create(title.clone())
-            .body("demo")
-            .labels(Some(vec![label]))
-            .send().await?;
-
-        let report_issue_number = report_issue.number;
+        let labels: Vec<String> = parse_labels_from_response(&res)?;
         if labels.is_empty() {
             continue;
         }
-        for lab in labels.into_iter() {
-            let label_slice = vec![lab];
-            let _ = report_issue_handle
-                .update(report_issue_number)
-                .labels(&label_slice)
-                .send().await?;
-        }
+        // let label_slice: Vec<String> = labels.iter().map(|label| label.to_string()).collect();
+        let report_issue = report_issue_handle
+            .create(title.clone())
+            .body("demo")
+            .labels(labels)
+            .send().await?;
 
         break;
     }
-
-    let report_issue = report_issue_handle
-        .create("hardcoded".to_string())
-        .body("demo")
-        .labels(Some(vec!["hardcoded".to_string()]))
-        .send().await?;
-    let report_issue_number = report_issue.number;
-    let label_slice = vec!["fake".to_string()];
-    let _ = report_issue_handle
-        .update(report_issue_number)
-        .labels(&label_slice)
-        .send().await?;
 
     Ok(())
 }
