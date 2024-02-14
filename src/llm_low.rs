@@ -7,9 +7,10 @@ use std::env;
 use http_req::{ request::{ Request, Method }, response::Response, uri::Uri };
 
 pub async fn completion_inner_async(user_input: &str) -> anyhow::Result<String> {
-    let llm_endpoint = "https://api-inference.huggingface.co/models/jaykchen/tiny";
+    let llm_endpoint = env::var("llm_endpoint").unwrap_or("https://api-inference.huggingface.co/models/jaykchen/tiny".to_string());
+    // let llm_endpoint = "https://api-inference.huggingface.co/models/jaykchen/tiny";
     let llm_api_key = env::var("LLM_API_KEY").expect("LLM_API_KEY-must-be-set");
-    let base_url = Uri::try_from(llm_endpoint).expect("Failed to parse URL");
+    let base_url = Uri::try_from(llm_endpoint.as_str()).expect("Failed to parse URL");
 
     let mut writer = Vec::new(); // This will store the response body
 
