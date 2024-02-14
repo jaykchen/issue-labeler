@@ -7,7 +7,9 @@ use std::env;
 use http_req::{ request::{ Request, Method }, response::Response, uri::Uri };
 
 pub async fn completion_inner_async(user_input: &str) -> anyhow::Result<String> {
-    let llm_endpoint = env::var("llm_endpoint").unwrap_or("https://api-inference.huggingface.co/models/jaykchen/tiny".to_string());
+    let llm_endpoint = env
+        ::var("llm_endpoint")
+        .unwrap_or("http://43.129.206.18:3000/generate".to_string());
     // let llm_endpoint = "https://api-inference.huggingface.co/models/jaykchen/tiny";
     let llm_api_key = env::var("LLM_API_KEY").expect("LLM_API_KEY-must-be-set");
     let base_url = Uri::try_from(llm_endpoint.as_str()).expect("Failed to parse URL");
@@ -26,7 +28,7 @@ pub async fn completion_inner_async(user_input: &str) -> anyhow::Result<String> 
     let query_len = query_bytes.len().to_string();
     // Prepare and send the HTTP request
 
-    for n in 0..3 {
+    for n in 0..2 {
         match
             Request::new(&base_url)
                 .method(Method::POST)
@@ -45,16 +47,10 @@ pub async fn completion_inner_async(user_input: &str) -> anyhow::Result<String> 
                 }
 
                 // Attempt to parse the response body into the expected structure
-                let completion_response: Vec<Choice> = serde_json
-                    ::from_slice(&writer)
-                    .expect("Failed to parse response from API");
+                let completion_response: GeneratedResponse = serde_json::from_slice(&writer)?;
 
-                if let Some(choice) = completion_response.get(0) {
-                    log::info!("Choice: {:?}", choice);
-                    return Ok(choice.generated_text.clone());
-                } else {
-                    return Err(anyhow::anyhow!("No completion choices found in the response"));
-                }
+                log::info!("GeneratedResponse: {:?}", completion_response);
+                return Ok(completion_response.generated_text.clone());
             }
             Err(e) => {
                 log::error!("Error getting response from API: {:?}", e);
@@ -71,7 +67,7 @@ pub async fn completion_inner_async(user_input: &str) -> anyhow::Result<String> 
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Choice {
+pub struct GeneratedResponse {
     pub generated_text: String,
 }
 

@@ -130,46 +130,41 @@ pub fn parse_labels_from_response(input: &str) -> anyhow::Result<Vec<String>> {
         "c-CI"
     ];
 
-    let pattern = regex::Regex::new(r"(?s)### Response:.*?`([^`]+)`").unwrap();
+    let pattern = regex::Regex::new(r"`([^`]+)`").unwrap();
 
     let known_labels_set: HashSet<String> = known_labels
-        .into_iter()
+        .iter()
         .map(|s| s.to_lowercase())
         .collect();
+    let original_case_map: std::collections::HashMap<String, String> = known_labels
+        .iter()
+        .map(|s| (s.to_lowercase(), s.to_string()))
+        .collect::<std::collections::HashMap<String, String>>();
 
-    if let Some(captures) = pattern.captures(input) {
-        if let Some(matched) = captures.get(1) {
-            let labels = matched.as_str();
-            let extracted_labels: Vec<&str> = labels.split(',').map(str::trim).collect();
+    let mut final_labels = Vec::new();
 
-            let mut final_labels = Vec::new();
+    for cap in pattern.captures_iter(input) {
+        let label = &cap[1]; // Keep the original case
+        let normalized_label = label.to_lowercase(); // Normalize for comparison
 
-            for label in extracted_labels {
-                // Normalize the label for comparison
-                let normalized_label = label.to_lowercase();
-
-                // Check if the normalized label is "close enough" to any known label
-                // This is a basic check, replace with fuzzy matching if needed
-                let close_enough_label = known_labels_set
-                    .iter()
-                    .find(|&known_label| known_label == &normalized_label);
-
-                match close_enough_label {
-                    Some(known_label) => final_labels.push(known_label.clone()),
-                    None => final_labels.push(normalized_label), // If not found, treat as a new/unknown label
-                }
+        if known_labels_set.contains(&normalized_label) {
+            if let Some(original_case_label) = original_case_map.get(&normalized_label) {
+                final_labels.push(original_case_label.clone());
+            } else {
+                final_labels.push(label.to_string());
             }
-
-            log::info!("Extracted labels: {:?}", final_labels);
-            Ok(final_labels)
         } else {
-            Err(anyhow::anyhow!("No labels found within backticks"))
+            final_labels.push(label.to_string());
         }
+    }
+
+    if final_labels.is_empty() {
+        Err(anyhow::anyhow!("No labels found within backticks"))
     } else {
-        Err(anyhow::anyhow!("'Response' section not found or does not follow the expected format"))
+        log::info!("Extracted labels: {:?}", final_labels);
+        Ok(final_labels)
     }
 }
-
 
 pub async fn chat_inner(system_prompt: &str, user_prompt: &str) -> anyhow::Result<String> {
     let openai = OpenAIFlows::new();
