@@ -15,10 +15,10 @@ use utils::*;
 #[no_mangle]
 #[tokio::main(flavor = "current_thread")]
 pub async fn on_deploy() {
-    let now = Utc::now();
-    let now_minute = now.minute() + 2;
-    let cron_time = format!("{:02} {:02} {:02} * *", now_minute, now.hour(), now.day());
-    // let cron_time = format!("2 2 * * *");
+    // let now = Utc::now();
+    // let now_minute = now.minute() + 2;
+    // let cron_time = format!("{:02} {:02} {:02} * *", now_minute, now.hour(), now.day());
+    let cron_time = format!("2 2 * * *");
     schedule_cron_job(cron_time, String::from("cron_job_evoked")).await;
 }
 
@@ -92,11 +92,15 @@ async fn inner() -> anyhow::Result<()> {
             continue;
         }
 
-        let report_issue = report_issue_handle.create(title.clone()).body("demo").send().await?;
+        let report_issue = report_issue_handle
+            .create(title.clone())
+            .body("demo")
+            .labels(labels)
+            .send().await?;
 
-        let report_issue_number = report_issue.number;
+        // let report_issue_number = report_issue.number;
 
-        let _ = add_labels_to_github_issue("jaykchen", "issue-labeler", report_issue_number, labels).await;
+        // let _ = add_labels_to_github_issue("jaykchen", "issue-labeler", report_issue_number, labels).await;
 
         break;
     }

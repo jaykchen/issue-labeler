@@ -133,39 +133,42 @@ pub fn parse_labels_from_response(input: &str) -> anyhow::Result<Vec<String>> {
     ];
 
     let pattern = regex::Regex::new(r"`([^`]+)`").unwrap();
+    let mut known_extracted = Vec::new();
 
-    let known_labels_set: HashSet<String> = known_labels
-        .iter()
-        .map(|s| s.to_lowercase())
-        .collect();
-    let original_case_map: std::collections::HashMap<String, String> = known_labels
-        .iter()
-        .map(|s| (s.to_lowercase(), s.to_string()))
-        .collect::<std::collections::HashMap<String, String>>();
-
-    let mut final_labels = Vec::new();
-
-    for cap in pattern.captures_iter(input) {
-        let label = &cap[1]; // Keep the original case
-        let normalized_label = label.to_lowercase(); // Normalize for comparison
-
-        if known_labels_set.contains(&normalized_label) {
-            if let Some(original_case_label) = original_case_map.get(&normalized_label) {
-                final_labels.push(original_case_label.clone());
-            } else {
-                final_labels.push(label.to_string());
+    if let Some(captures) = pattern.captures(input) {
+        if let Some(matched) = captures.get(1) {
+            let mut modified_input = matched
+                .as_str()
+                .split(",")
+                .map(|x| x.trim())
+                .collect::<Vec<_>>()
+                .join("§");
+            for &label in known_labels.iter() {
+                if modified_input.contains(label) {
+                    known_extracted.push(label.to_string());
+                    let _ = modified_input.replace(label, "§"); // Mark positions
+                }
             }
+
+            known_extracted.extend(
+                modified_input
+                    .split("§")
+                    .filter_map(|x| (
+                        if x.trim().is_empty() {
+                            None
+                        } else {
+                            Some(x.trim().to_string())
+                        }
+                    ))
+            );
         } else {
-            final_labels.push(label.to_string());
+            log::info!("No match found for the capture group.");
         }
+    } else {
+        log::info!("No match found in the input string.");
     }
 
-    if final_labels.is_empty() {
-        Err(anyhow::anyhow!("No labels found within backticks"))
-    } else {
-        log::info!("Extracted labels: {:?}", final_labels);
-        Ok(final_labels)
-    }
+    Ok(known_extracted)
 }
 
 pub async fn chat_inner(system_prompt: &str, user_prompt: &str) -> anyhow::Result<String> {
