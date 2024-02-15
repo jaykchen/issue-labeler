@@ -6,6 +6,8 @@ use serde::{ Deserialize, Serialize };
 use serde_json::{ json, Map, Value };
 use openai_flows::{ chat::{ ChatModel, ChatOptions }, OpenAIFlows };
 use std::{ collections::{ HashMap, HashSet }, env };
+use http_req::{ request::{ Request, Method }, response::Response, uri::Uri };
+
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct Payload {
     pub number: u64,
@@ -180,5 +182,49 @@ pub async fn chat_inner(system_prompt: &str, user_prompt: &str) -> anyhow::Resul
     match openai.chat_completion("chat_id", &user_prompt, &co).await {
         Ok(r) => Ok(r.choice),
         Err(_e) => Err(anyhow::Error::msg(_e.to_string())),
+    }
+}
+
+pub async fn add_labels_to_github_issue(
+    owner: &str,
+    repo: &str,
+    issue_number: u64,
+    labels: Vec<String>
+) -> anyhow::Result<Vec<u8>> {
+    let token = env::var("GITHUB_TOKEN").expect("GITHUB_TOKEN is required");
+    let base_url = format!(
+        "https://api.github.com/repos/{}/{}/issues/{}/labels",
+        owner,
+        repo,
+        issue_number
+    );
+    let base_url = Uri::try_from(base_url.as_str()).unwrap();
+    let mut writer = Vec::new();
+
+    let body = json!({ "labels": labels });
+    let body_bytes = serde_json::to_vec(&body).expect("Failed to serialize body to bytes");
+
+    match
+        Request::new(&base_url)
+            .method(Method::POST)
+            .header("Accept", "application/vnd.github+json")
+            .header("Authorization", &format!("Bearer {}", token))
+            .header("Content-Type", "application/json")
+            .header("User-Agent", "your-app-name")
+            .header("Content-Length", &body_bytes.len().to_string())
+            .body(&body_bytes)
+            .send(&mut writer)
+    {
+        Ok(res) => {
+            if !res.status_code().is_success() {
+                log::error!("GitHub HTTP error: {:?}", res.status_code());
+                return Err(anyhow::anyhow!("GitHub HTTP error: {:?}", res.status_code()));
+            }
+            Ok(writer)
+        }
+        Err(e) => {
+            log::error!("Error getting response from GitHub: {:?}", e);
+            Err(anyhow::anyhow!("Error getting response from GitHub: {:?}", e))
+        }
     }
 }
