@@ -96,10 +96,7 @@ async fn inner() -> anyhow::Result<()> {
 
         let report_issue_number = report_issue.number;
 
-        let report_issue = report_issue_handle
-            .update(report_issue_number)
-            .labels(&labels)
-            .send().await?;
+        let _ = report_issue_handle.add_labels(report_issue_number, &labels).await?;
 
         break;
     }
