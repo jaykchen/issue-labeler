@@ -49,20 +49,20 @@ async fn inner() -> anyhow::Result<()> {
         .page(1u8)
         .send().await?;
 
-    let n_days_ago = (Utc::now() - Duration::days(1)).naive_utc();
+    let n_days_ago = (Utc::now() - Duration::hours(1)).naive_utc();
     let contributors_set = HashSet::new();
     for issue in list.items {
         log::info!("{:?}", issue.title);
-        // if issue.pull_request.is_some() {
-        //     continue;
-        // }
+        if issue.pull_request.is_some() {
+            continue;
+        }
         // let labels = issue.labels.clone();
-        // if
-        //     issue.created_at.naive_utc() < n_days_ago
-        //     // || !issue.labels.is_empty()
-        // {
-        //     continue;
-        // }
+        if
+            issue.created_at.naive_utc() < n_days_ago
+            // || !issue.labels.is_empty()
+        {
+            continue;
+        }
 
         let payload = why_labels(&issue, contributors_set.clone()).await?;
         let title = payload.title.clone();
@@ -102,7 +102,6 @@ async fn inner() -> anyhow::Result<()> {
 
         // let _ = add_labels_to_github_issue("jaykchen", "issue-labeler", report_issue_number, labels).await;
 
-        break;
     }
 
     Ok(())
